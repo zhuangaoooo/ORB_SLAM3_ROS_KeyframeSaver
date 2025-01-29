@@ -33,6 +33,16 @@
 #include <boost/archive/xml_iarchive.hpp>
 #include <boost/archive/xml_oarchive.hpp>
 
+// ========== BEGIN Keyframe Saving Modifications ========== //
+#include <fstream>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
+
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+// ========== END Keyframe Saving Modifications ========== //
+
 namespace ORB_SLAM3
 {
 
@@ -498,6 +508,10 @@ void System::ResetActiveMap()
 
 void System::Shutdown()
 {
+// ========== BEGIN Keyframe Saving Modifications ========== //
+    SaveAllMapsToJson("orb_slam3_maps.json");
+// ========== END Keyframe Saving Modifications ========== //
+
     {
         unique_lock<mutex> lock(mMutexReset);
         mbShutDown = true;
@@ -1616,5 +1630,110 @@ bool System::SaveMap(const string &filename)
     return false;
 }
 
-} //namespace ORB_SLAM
+// ========== BEGIN Keyframe Saving Modifications ========== //
+void System::SaveAllMapsToJson(const std::string& filename) {
+    json j_all_maps;
 
+    const std::vector<Map*>& maps = mpAtlas->GetAllMaps();
+    cout << "Get all maps" << endl;
+    cout << "Maps size: " << maps.size() << endl;
+
+    for (size_t map_idx = 0; map_idx < maps.size(); map_idx++) {
+        Map* pMap = maps[map_idx];
+        json j_map;
+
+        const std::vector<KeyFrame*>& keyframes = pMap->GetAllKeyFrames();
+        cout << "Get all keyframes" << endl;
+        cout << "Keyframes size: " << keyframes.size() << endl;
+
+        for (KeyFrame* pKF : keyframes) {
+            if (pKF->isBad()) continue;
+
+            json j_kf;
+
+            //---------------- BASIC INFORMATION ----------------//
+            j_kf["id"] = pKF->mnId;
+            j_kf["timestamp"] = pKF->mTimeStamp;
+            j_kf["is_bad"] = pKF->isBad();
+
+            //---------------- POSE ----------------//
+            Sophus::SE3f Tcw = pKF->GetPose();
+            Eigen::Matrix4f Tcw_matrix = Tcw.matrix();
+            std::vector<float> pose_data(Tcw_matrix.data(), Tcw_matrix.data() + Tcw_matrix.size());
+            j_kf["pose"] = pose_data;
+
+            //---------------- CAMERA ----------------//
+            j_kf["camera"] = {
+                {"fx", pKF->fx},
+                {"fy", pKF->fy},
+                {"cx", pKF->cx},
+                {"cy", pKF->cy},
+                {"k1", (pKF->mDistCoef.rows >= 1) ? pKF->mDistCoef.at<float>(0) : 0.0f},
+                {"k2", (pKF->mDistCoef.rows >= 2) ? pKF->mDistCoef.at<float>(1) : 0.0f}
+            };
+
+            //---------------- CONNECTEDKFS ----------------//
+            std::vector<KeyFrame*> vConnectedKFs = pKF->GetVectorCovisibleKeyFrames();
+            json j_covis;
+            for (size_t i = 0; i < vConnectedKFs.size(); i++) {
+                KeyFrame* pKFi = vConnectedKFs[i];
+                if (pKFi && !pKFi->isBad()) {
+                    j_covis.push_back({
+                        {"kf_id", pKFi->mnId},
+                        {"weight", pKF->GetWeight(pKFi)}
+                    });
+                }
+            }
+            j_kf["covisibility"] = j_covis;
+
+            //---------------- STRUCTURE ----------------//
+            KeyFrame* pParent = pKF->GetParent();
+            if (pParent && !pParent->isBad()) {
+                j_kf["parent_id"] = pParent->mnId;
+            }
+
+            std::set<KeyFrame*> spChildren = pKF->GetChilds();
+            std::vector<long unsigned int> children_ids;
+            for (KeyFrame* pChild : spChildren) {
+                if (pChild && !pChild->isBad()) {
+                    children_ids.push_back(pChild->mnId);
+                }
+            }
+            j_kf["children_ids"] = children_ids;
+
+            std::set<KeyFrame*> spLoopEdges = pKF->GetLoopEdges();
+            std::vector<long unsigned int> loop_edge_ids;
+            for (KeyFrame* pLKF : spLoopEdges) {
+                if (pLKF && !pLKF->isBad()) {
+                    loop_edge_ids.push_back(pLKF->mnId);
+                }
+            }
+            j_kf["loop_edge_ids"] = loop_edge_ids;
+
+            j_map["keyframes"].push_back(j_kf);
+        }
+
+        j_all_maps["maps"].push_back(j_map);
+    }
+
+    const std::string save_dir = "/path/to/save/"; //path to save the file
+    const std::string full_path = save_dir + "/" + filename;
+
+    if (mkdir(save_dir.c_str(), 0755) != 0) {
+        if (errno != EEXIST) {
+            std::cerr << "Failed to create directory: " << save_dir << " (Error: " << strerror(errno) << ")" << std::endl;
+            return;
+        }
+    }
+
+    std::ofstream ofs(full_path);
+    if (!ofs.is_open()) {
+        std::cerr << "Failed to open file: " << full_path << std::endl;
+        return;
+    }
+    ofs << j_all_maps.dump(4);
+    ofs.close();
+}
+// ========== END Keyframe Saving Modifications ========== //
+
+} //namespace ORB_SLAM

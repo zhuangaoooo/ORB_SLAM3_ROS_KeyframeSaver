@@ -1560,7 +1560,7 @@ Sophus::SE3f Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat 
 
     if(isKF)
     {
-        const std::string save_dir = "save/"; //path to save keyframes
+        const std::string save_dir = "/path/to/save/"; //path to save keyframes
 
         if (mkdir(save_dir.c_str(), 0777) != 0 && errno != EEXIST) {
             std::cerr << "Failed to create directory: " << save_dir << std::endl;
@@ -1640,7 +1640,7 @@ Sophus::SE3f Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, co
 
     if(isKF)
     {
-        const std::string save_dir = "save/"; //path to save keyframes
+        const std::string save_dir = "/path/to/save/"; //path to save keyframes
 
         if (mkdir(save_dir.c_str(), 0777) != 0 && errno != EEXIST) {
             std::cerr << "Failed to create directory: " << save_dir << std::endl;
@@ -1729,7 +1729,7 @@ Sophus::SE3f Tracking::GrabImageMonocular(const cv::Mat &im, const double &times
 
     if(isKF)
     {
-        const std::string save_dir = "save/"; //path to save keyframes
+        const std::string save_dir = "/path/to/save/"; //path to save keyframes
 
         if (mkdir(save_dir.c_str(), 0777) != 0 && errno != EEXIST) {
             std::cerr << "Failed to create directory: " << save_dir << std::endl;

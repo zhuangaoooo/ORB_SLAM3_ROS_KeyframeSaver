@@ -1,5 +1,13 @@
-# ORB-SLAM3-ROS
+# ORB-SLAM3 with Keyframe Saving
 
+**This is a fork of  [orb_slam3_ros](https://github.com/thien94/orb_slam3_ros) with added functionality to save keyframe poses, metadata to JSON, and images to PNG.**
+
+## New Features
+- Save all keyframe poses (SE3) and timestamps to JSON.
+- Export keyframe images to a specified directory.
+- Support multi-map sessions.
+
+## Original Information
 A ROS implementation of [ORB-SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3) V1.0 that focuses on the ROS part.
 
 This package uses ```catkin build```. Tested on Ubuntu 20.04.
@@ -33,12 +41,23 @@ sudo apt install ros-[DISTRO]-hector-trajectory-server
 ## 2. Installation
 ```
 cd ~/catkin_ws/src
-git clone https://github.com/thien94/orb_slam3_ros.git
+git clone https://github.com/zhuangaoooo/ORB_SLAM3_ROS_KeyframeSaver.git
 cd ../
 catkin build
 ```
 
 ## 3. Run Examples
+
+### Things to do before running the examples
+
+Edit the saving direction:
+1. Open `Tracking.cc` and `System.cc` in `catkin_ws/src/ORB_SLAM3_ROS_KeyframeSaver/orb_slam3/src`
+2. Give the `save_dir` (which you can easily find with ctrl+f) the direction as you like.
+
+Remember to source first:
+```
+source devel/setup.bash
+```
 
 ### Mono mode with [NTU VIRAL](https://ntu-aris.github.io/ntu_viral_dataset/)'s [`eee_01.bag`](https://researchdata.ntu.edu.sg/api/access/datafile/68133):
 

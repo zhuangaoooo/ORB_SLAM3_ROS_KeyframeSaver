@@ -83,6 +83,10 @@ class Settings;
 class System
 {
 public:
+// ========== BEGIN Keyframe Saving Modifications ========== //
+    void SaveAllMapsToJson(const std::string& filename);
+// ========== END Keyframe Saving Modifications ========== //
+
     // Input sensor
     enum eSensor{
         NOT_SET=-1,
