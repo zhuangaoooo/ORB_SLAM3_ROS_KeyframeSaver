@@ -34,11 +34,18 @@
 #include <mutex>
 #include <chrono>
 
+#include <sys/stat.h>
+
 
 using namespace std;
 
 namespace ORB_SLAM3
 {
+
+// ========== BEGIN Keyframe Saving Modifications ========== //
+bool isKF = false;
+unsigned int currentKF = 0;
+// ========== END Keyframe Saving Modifications ========== //
 
 
 Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Atlas *pAtlas, KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor, Settings* settings, const string &_nameSeq):
@@ -1545,9 +1552,41 @@ Sophus::SE3f Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat 
     vdStereoMatch_ms.push_back(mCurrentFrame.mTimeStereoMatch);
 #endif
 
-    //cout << "Tracking start" << endl;
+// ========== BEGIN Keyframe Saving Modifications ========== //
+    isKF = false;
+    currentKF = 0;
+
     Track();
-    //cout << "Tracking end" << endl;
+
+    if(isKF)
+    {
+        const std::string save_dir = "save/"; //path to save keyframes
+
+        if (mkdir(save_dir.c_str(), 0777) != 0 && errno != EEXIST) {
+            std::cerr << "Failed to create directory: " << save_dir << std::endl;
+        }
+
+        const std::string left_dir = save_dir + "left/";
+        const std::string right_dir = save_dir + "right/";
+
+        if (mkdir(left_dir.c_str(), 0777) != 0 && errno != EEXIST) {
+            std::cerr << "Failed to create left directory: " << left_dir << std::endl;
+        }
+
+        if (mkdir(right_dir.c_str(), 0777) != 0 && errno != EEXIST) {
+            std::cerr << "Failed to create right directory: " << right_dir << std::endl;
+        }
+
+        std::ostringstream kf_id;
+        kf_id << std::setfill('0') << std::setw(5) << currentKF;
+
+        const std::string left_path = left_dir + "left_" + kf_id.str() + ".png";
+        const std::string right_path = right_dir + "right_" + kf_id.str() + ".png";
+
+        cv::imwrite(left_path, imRectLeft);
+        cv::imwrite(right_path, imRectRight);
+    }
+// ========== END Keyframe Saving Modifications ========== //
 
     return mCurrentFrame.GetPose();
 }
@@ -1593,7 +1632,44 @@ Sophus::SE3f Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, co
     vdORBExtract_ms.push_back(mCurrentFrame.mTimeORB_Ext);
 #endif
 
+// ========== BEGIN Keyframe Saving Modifications ========== //
+    isKF = false;
+    currentKF = 0;
+
     Track();
+
+    if(isKF)
+    {
+        const std::string save_dir = "save/"; //path to save keyframes
+
+        if (mkdir(save_dir.c_str(), 0777) != 0 && errno != EEXIST) {
+            std::cerr << "Failed to create directory: " << save_dir << std::endl;
+        }
+
+        const std::string rgb_dir = save_dir + "rgb/";
+        const std::string depth_dir = save_dir + "depth/";
+
+        if (mkdir(rgb_dir.c_str(), 0777) != 0 && errno != EEXIST) {
+            std::cerr << "Failed to create RGB directory: " << rgb_dir << std::endl;
+        }
+
+        if (mkdir(depth_dir.c_str(), 0777) != 0 && errno != EEXIST) {
+            std::cerr << "Failed to create Depth directory: " << depth_dir << std::endl;
+        }
+
+        std::ostringstream kf_id;
+        kf_id << std::setfill('0') << std::setw(5) << currentKF;
+
+        const std::string rgb_path = rgb_dir + "RGB_" + kf_id.str() + ".png";
+        const std::string depth_path = depth_dir + "Depth_" + kf_id.str() + ".png";
+
+        cv::imwrite(rgb_path, imRGB);
+
+        cv::Mat depth_uint16;
+        imDepth.convertTo(depth_uint16, CV_16UC1, 1000.0);
+        cv::imwrite(depth_path, depth_uint16);
+    }
+// ========== END Keyframe Saving Modifications ========== //
 
     return mCurrentFrame.GetPose();
 }
@@ -1645,7 +1721,34 @@ Sophus::SE3f Tracking::GrabImageMonocular(const cv::Mat &im, const double &times
 #endif
 
     lastID = mCurrentFrame.mnId;
+// ========== BEGIN Keyframe Saving Modifications ========== //
+    isKF = false;
+    currentKF = 0;
+
     Track();
+
+    if(isKF)
+    {
+        const std::string save_dir = "save/"; //path to save keyframes
+
+        if (mkdir(save_dir.c_str(), 0777) != 0 && errno != EEXIST) {
+            std::cerr << "Failed to create directory: " << save_dir << std::endl;
+        }
+
+        const std::string im_dir = save_dir + "im/";
+        
+        if (mkdir(im_dir.c_str(), 0777) != 0 && errno != EEXIST) {
+            std::cerr << "Failed to create Image directory: " << im_dir << std::endl;
+        }
+
+        std::ostringstream kf_id;
+        kf_id << std::setfill('0') << std::setw(5) << currentKF;
+
+        const std::string im_path = im_dir + "RGB_" + kf_id.str() + ".png";
+
+        cv::imwrite(im_path, im);
+    }
+// ========== END Keyframe Saving Modifications ========== //
 
     return mCurrentFrame.GetPose();
 }
@@ -3377,6 +3480,11 @@ void Tracking::CreateNewKeyFrame()
 
     mnLastKeyFrameId = mCurrentFrame.mnId;
     mpLastKeyFrame = pKF;
+
+// ========== BEGIN Keyframe Saving Modifications ========== //
+    isKF = true;
+    currentKF = pKF->mnId;
+// ========== END Keyframe Saving Modifications ========== //
 }
 
 void Tracking::SearchLocalPoints()

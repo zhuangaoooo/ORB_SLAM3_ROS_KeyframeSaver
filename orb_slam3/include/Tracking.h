@@ -45,6 +45,11 @@
 namespace ORB_SLAM3
 {
 
+// ========== BEGIN Keyframe Saving Modifications ========== //
+extern bool isKF;
+extern unsigned int currentKF;
+// ========== END Keyframe Saving Modifications ========== //
+
 class Viewer;
 class FrameDrawer;
 class Atlas;
